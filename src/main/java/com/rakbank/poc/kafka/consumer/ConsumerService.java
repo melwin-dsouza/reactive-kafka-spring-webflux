@@ -13,6 +13,8 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.receiver.KafkaReceiver;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+
 @Service
 public class ConsumerService {
 
@@ -38,19 +40,23 @@ public class ConsumerService {
     public Mono<Void> consumeMessages() {
         // Consume messages reactively
         return reactiveKafkaConsumerTemplate
-                .receive()
-                .doOnNext(record -> {
+                .receiveAutoAck()
+//                .buffer(500)
+                .bufferTimeout(500,Duration.ofSeconds(10))
+                .doOnNext(recordBatch -> {
                     // Process each message
-                     Mono<User> user=ccmClient.callCCM(record.value());
-                     user.subscribe(
+                    Flux.fromIterable(recordBatch)
+                            .doOnNext(user->{
+                     ccmClient.callCCM(user.value())
+                             .subscribe(
                              result -> log.info("Received response: {}", result),
-                        error -> log.error("Error occurred: {}, -{}",user.toString(), error.getMessage())
-                     );
+                        error -> log.error("Error occurred: {}, -{}",user.toString(), error.getMessage()));
+                            })
+                            .subscribe();
                     // Acknowledge the message
-                    record.receiverOffset().acknowledge();
                 })
                 .onBackpressureBuffer(1000, // Buffer up to 1000 items in case of backpressure
-                        (overflowItem) -> log.info("Backpressure overflow! Item dropped: {}",overflowItem.value()))
+                        (overflowItem) -> log.info("Backpressure overflow! Item dropped: {}",overflowItem.getFirst()))
                 .doOnTerminate(() -> System.out.println("Kafka consumer stopped."))
 //                .onBackpressureBuffer() // Optional: Apply backpressure handling
                 .then();

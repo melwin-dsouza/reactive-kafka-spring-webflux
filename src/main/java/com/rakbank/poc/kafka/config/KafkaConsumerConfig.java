@@ -47,12 +47,12 @@ public class KafkaConsumerConfig {
     @Bean
     public WebClient webClient(){
         ConnectionProvider connectionProvider=ConnectionProvider.builder("custom")
-                .maxConnections(5000)
+                .maxConnections(500)
                 .maxIdleTime(Duration.ofSeconds(20))
                 .maxLifeTime(Duration.ofSeconds(60))
                 .pendingAcquireTimeout(Duration.ofSeconds(60))
                 .evictInBackground(Duration.ofSeconds(120))
-                .pendingAcquireMaxCount(5000)
+                .pendingAcquireMaxCount(1000)
                 .build();
         HttpClient httpClient=HttpClient.create(connectionProvider);
 
